@@ -110,16 +110,6 @@ function opencodeVerb(name: string): string {
 	return OPENCODE_VERBS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** What a search looked for, as opencode writes it: `"pattern" in path`. */
-function opencodeSearch(args: ToolArgs): string | undefined {
-	const pattern = typeof args.pattern === "string"
-		? normalizeLineEndings(args.pattern).split("\n")[0]!.trim()
-		: "";
-	const path = typeof args.path === "string" ? args.path : typeof args.file_path === "string" ? args.file_path : "";
-	if (!pattern) return path || undefined;
-	return path ? `"${pattern}" in ${path}` : `"${pattern}"`;
-}
-
 const runtime = new ToolRuntime();
 const nestedSummaries = new NestedCallSummaries();
 let registeredConfiguration: string | undefined;
@@ -284,9 +274,7 @@ function renderOpencodeCall(
 		const command = normalizeLineEndings(typeof args.command === "string" ? args.command : "").trim();
 		label = ` ${styleMultiline(command || "\u2026", (line) => theme.fg("toolOutput", line))}`;
 	} else {
-		const summary = kind === "file"
-			? (name === "grep" || name === "find" ? opencodeSearch(args) : getCallDetails(name, args))
-			: summarizeCustomArguments(args);
+		const summary = kind === "file" ? getCallDetails(name, args) : summarizeCustomArguments(args);
 		label = ` ${theme.fg("toolTitle", theme.bold(kind === "custom" ? name : opencodeVerb(name)))}`
 			+ (summary ? ` ${styleMultiline(summary, (line) => theme.fg("toolOutput", line))}` : "");
 	}

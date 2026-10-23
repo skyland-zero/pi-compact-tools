@@ -28,7 +28,7 @@ test("opencode writes a search, a command, and a custom call its own way", async
 	try {
 		const grep = makeRow("grep", "oc-grep", { pattern: "tgrep", path: "src" }, harness.definitions.get("grep"));
 		grep.updateResult({ ...text("src/a.ts:1: hit"), isError: false } as never);
-		assert.deepEqual(plain(grep.render(100)), ['   ✱ Grep "tgrep" in src']);
+		assert.deepEqual(plain(grep.render(100)), ["   ✱ Grep /tgrep/ in src"], "a search keeps compact's pattern form");
 
 		const bash = makeRow("bash", "oc-bash", { command: "npm test -- --watch=false" }, harness.definitions.get("bash"));
 		bash.updateResult({ ...text("out 1"), isError: false } as never);
