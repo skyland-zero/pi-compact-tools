@@ -72,8 +72,9 @@ import {
 const PREVIEW_DIFF_CONTEXT_LINES = 1;
 
 /**
- * opencode rows are compact rows whose status dot is the tool's own glyph: a
- * prompt for a shell, an arrow for a read, and so on.
+ * opencode rows are compact rows with the tool's glyph in place of the status
+ * dot and its verb in place of the tool name. A shell row has no name: its
+ * summary, or the whole command once opened, follows the glyph.
  */
 const OPENCODE_GLYPHS: Record<string, string> = {
 	read: "\u2192",
@@ -88,9 +89,22 @@ const OPENCODE_GLYPHS: Record<string, string> = {
 };
 /** Any other tool, as opencode marks a generic call. */
 const OPENCODE_GLYPH = "\u25c8";
+/** The verb opencode shows after a built-in tool's glyph. */
+const OPENCODE_VERBS: Record<string, string> = {
+	read: "Read",
+	write: "Write",
+	edit: "Edit",
+	grep: "Grep",
+	find: "Glob",
+	ls: "List",
+};
 
 function opencodeGlyph(name: string): string {
 	return OPENCODE_GLYPHS[name] ?? OPENCODE_GLYPH;
+}
+
+function opencodeVerb(name: string): string {
+	return OPENCODE_VERBS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 const runtime = new ToolRuntime();
@@ -247,7 +261,8 @@ function renderRowCallContent(name: string, args: ToolArgs, theme: Theme, ctx: R
 	const state = runtime.syncRow(ctx);
 	runtime.syncExpansion(state, ctx.expanded, name);
 	const kind = rowKind(name);
-	const indicator = liveIndicator(theme, ctx, state, isCodex() ? CODEX_BULLET : isOpencode() ? opencodeGlyph(name) : undefined);
+	const opencode = isOpencode();
+	const indicator = liveIndicator(theme, ctx, state, isCodex() ? CODEX_BULLET : opencode ? opencodeGlyph(name) : undefined);
 	// Painted once now as well, so a row that starts running starts the animation clock.
 	indicator();
 	// Codex's head reads the call's outcome, so it is worded each time it is drawn.
@@ -264,18 +279,32 @@ function renderRowCallContent(name: string, args: ToolArgs, theme: Theme, ctx: R
 		if (kind === "custom" && state.expanded && hasNestedArguments(args)) container.addChild(renderArguments(args, theme, CLAUDE_INDENT));
 		return new WithinWidth(container);
 	}
-	const title = ` ${theme.fg("toolTitle", theme.bold(name))}`;
 	let details: string | undefined;
 	if (kind === "shell") {
 		const command = normalizeLineEndings(typeof args.command === "string" ? args.command : "");
-		details = state.expanded
-			? styleMultiline(command || "…", (line) => theme.fg("toolOutput", line))
-			: theme.fg("toolOutput", summarizeShellCommand(name, command));
+		if (state.expanded) {
+			details = styleMultiline(command || "…", (line) => theme.fg("toolOutput", line));
+		} else {
+			// A result update redraws the call with the same arguments. Keep the
+			// summary's plain text; the theme paints it fresh on each pass.
+			if (state.lastSummaryCommand !== command || state.lastSummaryText === undefined) {
+				state.lastSummaryCommand = command;
+				state.lastSummaryText = summarizeShellCommand(name, command);
+			}
+			details = theme.fg("toolOutput", state.lastSummaryText);
+		}
 	} else {
 		const summary = kind === "file" ? getCallDetails(name, args) : summarizeCustomArguments(args);
 		details = summary ? styleMultiline(summary, (line) => theme.fg("toolOutput", line)) : undefined;
 	}
-	const container = new LiveCallContainer(indicator, (dot) => renderToolCall(dot + title, details, theme));
+	// opencode names the action, not the tool: verbs for built-ins, the tool's own
+	// name for custom tools, and no name at all on a shell's summary/command row.
+	const label = opencode
+		? kind === "shell" ? undefined : kind === "custom" ? name : opencodeVerb(name)
+		: name;
+	const title = label === undefined ? "" : ` ${theme.fg("toolTitle", theme.bold(label))}`;
+	const container = new LiveCallContainer(indicator, (dot) =>
+		title ? renderToolCall(dot + title, details, theme) : renderToolCall(dot, details, theme));
 	const extra = kind === "file" ? getArgumentDetails(name, args) : kind === "custom" && state.expanded ? args : {};
 	if (Object.keys(extra).length > 0) container.addChild(renderArguments(extra, theme));
 	return new WithinWidth(container);

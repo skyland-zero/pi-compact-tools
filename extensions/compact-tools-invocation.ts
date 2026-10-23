@@ -426,6 +426,23 @@ type ResultDetails = {
 	linesTruncated?: unknown;
 };
 
+type DiffCache = {
+	diffRaw?: unknown;
+	diff?: string;
+	patchRaw?: unknown;
+	patch?: string;
+	changesFor?: string;
+	changes?: { added: number; removed: number };
+};
+/** The same result is read several times while one row is drawn; normalize it once. */
+const diffCaches = new WeakMap<object, DiffCache>();
+
+function diffCacheFor(result: AgentToolResult<unknown>): DiffCache {
+	let cache = diffCaches.get(result);
+	if (!cache) diffCaches.set(result, cache = {});
+	return cache;
+}
+
 function countTextLines(text: string): number {
 	const normalized = normalizeLineEndings(text).trimEnd();
 	if (!normalized) return 0;
@@ -437,13 +454,23 @@ function countTextLines(text: string): number {
 }
 
 export function getEditDiff(result: AgentToolResult<unknown>): string {
-	const diff = (result.details as ResultDetails | undefined)?.diff;
-	return typeof diff === "string" ? normalizeLineEndings(diff).trimEnd() : "";
+	const raw = (result.details as ResultDetails | undefined)?.diff;
+	if (typeof raw !== "string") return "";
+	const cache = diffCacheFor(result);
+	if (cache.diffRaw === raw && cache.diff !== undefined) return cache.diff;
+	cache.diffRaw = raw;
+	cache.diff = normalizeLineEndings(raw).trimEnd();
+	return cache.diff;
 }
 
 export function getEditPatch(result: AgentToolResult<unknown>): string {
-	const patch = (result.details as ResultDetails | undefined)?.patch;
-	return typeof patch === "string" ? normalizeLineEndings(patch).trimEnd() : "";
+	const raw = (result.details as ResultDetails | undefined)?.patch;
+	if (typeof raw !== "string") return "";
+	const cache = diffCacheFor(result);
+	if (cache.patchRaw === raw && cache.patch !== undefined) return cache.patch;
+	cache.patchRaw = raw;
+	cache.patch = normalizeLineEndings(raw).trimEnd();
+	return cache.patch;
 }
 
 /** Keep only the lines that the edit actually removed or added; discard context and ellipses. */
@@ -459,13 +486,17 @@ export function getEditChanges(result: AgentToolResult<unknown>): string {
 export function countEditChanges(result: AgentToolResult<unknown>): { added: number; removed: number } | undefined {
 	const diff = getEditDiff(result);
 	if (!diff) return undefined;
+	const cache = diffCacheFor(result);
+	if (cache.changesFor === diff && cache.changes !== undefined) return cache.changes;
 	let added = 0;
 	let removed = 0;
 	for (const line of diff.split("\n")) {
 		if (line.startsWith("+")) added++;
 		else if (line.startsWith("-")) removed++;
 	}
-	return { added, removed };
+	cache.changesFor = diff;
+	cache.changes = { added, removed };
+	return cache.changes;
 }
 
 const READ_FOOTER = /\n\n(\[(?:Showing lines |\d+ more lines in file\.)[^\n]*\])$/u;

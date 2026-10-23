@@ -572,6 +572,16 @@ test("drops separator whitespace at the start of wrapped command lines", () => {
 	assert.deepEqual(lines, ["echo", "foo ", "bar"]);
 });
 
+test("leaves a line that fits whole, closing style included", () => {
+	const line = "\x1b[31mabc\x1b[39m";
+	assert.deepEqual(hardWrapTextWithAnsi(line, 4), [line]);
+});
+
+test("keeps the historical slice at exactly the remaining width", () => {
+	const line = "\x1b[31mabc\x1b[39m";
+	assert.deepEqual(hardWrapTextWithAnsi(line, 3), [tui.sliceByColumn(line, 0, 3, true)]);
+});
+
 test("caches immutable prefixed layout by terminal width", () => {
 	const component = prefixedText("a long line that wraps", " │ ");
 	const first = component.render(12);
@@ -2043,6 +2053,13 @@ test("counts the lines an edit added and removed from Pi's diff", () => {
 	assert.deepEqual(countEditChanges(result("     ...\n  1 a\n- 2 b\n+ 2 c\n+ 3 d")), { added: 2, removed: 1 });
 	assert.deepEqual(countEditChanges(result("+ 1 only added")), { added: 1, removed: 0 });
 	assert.equal(countEditChanges(result(undefined)), undefined);
+});
+
+test("edit diff caching follows changed result details", () => {
+	const result = { content: [], details: { diff: "- 1 old\n+ 1 new" } };
+	assert.deepEqual(countEditChanges(result as never), { added: 1, removed: 1 });
+	result.details.diff = "- 1 old\n+ 1 newer\n+ 2 more";
+	assert.deepEqual(countEditChanges(result as never), { added: 2, removed: 1 });
 });
 
 test("marks a finished custom tool's row as done before its result is drawn", async () => {

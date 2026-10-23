@@ -267,7 +267,13 @@ export class ToolRuntime {
 
 	private persistTiming(state: RowState, toolCallId: string): void {
 		if (state.startedAt === undefined) return;
-		const timing = this.executionTimings.get(toolCallId) ?? { startedAt: state.startedAt };
+		const existing = this.executionTimings.get(toolCallId);
+		// Rows redraw many times with the same timings; only a changed value writes.
+		if (existing
+			&& existing.startedAt === state.startedAt
+			&& (state.endedAt === undefined || existing.endedAt === state.endedAt)
+			&& (!validDurationMs(state.durationMs) || existing.durationMs === state.durationMs)) return;
+		const timing = existing ?? { startedAt: state.startedAt };
 		timing.startedAt = state.startedAt;
 		if (state.endedAt !== undefined) timing.endedAt = state.endedAt;
 		if (validDurationMs(state.durationMs)) timing.durationMs = state.durationMs;

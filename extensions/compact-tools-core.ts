@@ -29,7 +29,8 @@ export function indicatorGlyph(_status: RowStatus, _frame = 0): string {
 }
 
 export function normalizeLineEndings(value: string): string {
-	return value.replace(/\r\n?|\n/g, "\n");
+	// Most text already uses LF; only allocate when a carriage return is present.
+	return value.includes("\r") ? value.replace(/\r\n?/g, "\n") : value;
 }
 
 export function classifyCallStatus(isError: boolean, executionStarted: boolean, completed: boolean): RowStatus {

@@ -23,7 +23,7 @@ Requires Node.js 22.19+ and Pi 0.85.1+. **Pi 1.0.2+ recommended** for native ren
 | **Claude** | Grouped reads/searches, `⎿` results, edit previews | `/compact-tools claude` |
 | **Codex** | `• Explored` groups, `• Ran` output, highlighted diffs | `/compact-tools codex` |
 | **Compact** (default) | One row per call: status, duration, line count, and diff | `/compact-tools compact` |
-| **OpenCode** | Compact rows with a tool glyph in place of the status dot | `/compact-tools opencode` |
+| **OpenCode** | Compact rows with verbs, shell summaries, and tool glyphs | `/compact-tools opencode` |
 | **Off / Pi native** | Pi's original rows, thinking display, and working indicator | `/compact-tools off` |
 
 Every style, including **off**, redraws existing rows immediately, even while tools run. No reload or interruption is needed. Only read-only exploration is grouped; commands that write or execute work keep separate rows.
@@ -68,7 +68,7 @@ The two failed edits are intentional. Reload/resume preserves summaries from nes
 
 ```text
 /compact-tools                 # choose style and save scope
-/compact-tools opencode        # compact rows with a tool glyph
+/compact-tools opencode        # compact rows with verbs and a tool glyph
 /compact-tools claude project  # save for this trusted project
 /compact-tools codex global    # save globally
 /compact-tools status          # effective settings and paths

@@ -11,7 +11,7 @@ const HELP = "Usage: /compact-tools [compact|opencode|claude|codex|off] [global|
 const BUSY = "Wait for the current response to finish before changing tool styles.";
 const CHOICES: Record<DisplayStyle, string> = {
 	compact: "Compact — one expandable row per tool call",
-	opencode: "OpenCode — compact rows with tool glyphs",
+	opencode: "OpenCode — compact rows with verbs and tool glyphs",
 	claude: "Claude — group reads and searches",
 	codex: "Codex — explored groups and output tails, like Codex CLI",
 	off: "Off — restore Pi's native UI",

@@ -257,6 +257,12 @@ export function hardWrapTextWithAnsi(text: string, width: number): string[] {
 			wrapped.push("");
 			continue;
 		}
+		// A line with a column to spare is already whole. At exactly the width,
+		// sliceByColumn drops trailing resets, so keep that path byte-for-byte.
+		if (lineWidth < safeWidth) {
+			wrapped.push(logicalLine);
+			continue;
+		}
 		let offset = 0;
 		while (offset < lineWidth) {
 			if (offset > 0) {
