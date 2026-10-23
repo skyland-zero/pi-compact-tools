@@ -10,7 +10,7 @@ export type BuiltInDefinition = ToolDefinition<any, any, any>;
 
 export const DISPLAY_MODES = ["normal", "silent"] as const;
 export type DisplayMode = (typeof DISPLAY_MODES)[number];
-/** How tool rows are drawn: compactly, the way Claude Code, Codex, or opencode draw them, or by Pi itself. */
+/** How tool rows are drawn: compactly, with tool glyphs, the way Claude Code or Codex draw them, or by Pi itself. */
 export const DISPLAY_STYLES = ["compact", "opencode", "claude", "codex", "off"] as const;
 export type DisplayStyle = (typeof DISPLAY_STYLES)[number];
 

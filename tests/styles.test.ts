@@ -73,7 +73,7 @@ test("off leaves every built-in and custom tool with Pi's own renderer", async (
 test("style changes affect UI routing without registering tools", async () => {
 	writeConfig({ style: "compact" });
 	const { registered, start } = await startExtension();
-	for (const style of ["compact", "off", "claude", "codex"]) {
+	for (const style of ["compact", "opencode", "off", "claude", "codex"]) {
 		writeConfig({ style });
 		start();
 		assert.deepEqual(registered, []);

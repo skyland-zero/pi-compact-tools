@@ -72,13 +72,9 @@ import {
 const PREVIEW_DIFF_CONTEXT_LINES = 1;
 
 /**
- * opencode's rows sit one column in, level with the other styles' glyph: a glyph
- * instead of a status dot, the tool's verb, and what it was given. Its output lines
- * up under that label rather than on a rail. (opencode itself indents three columns;
- * matching compact keeps the glyph column steady when switching styles.)
+ * opencode rows are compact rows whose status dot is the tool's own glyph: a
+ * prompt for a shell, an arrow for a read, and so on.
  */
-const OPENCODE_INDENT = " ";
-const OPENCODE_RAIL = "   ";
 const OPENCODE_GLYPHS: Record<string, string> = {
 	read: "\u2192",
 	grep: "\u2731",
@@ -92,23 +88,9 @@ const OPENCODE_GLYPHS: Record<string, string> = {
 };
 /** Any other tool, as opencode marks a generic call. */
 const OPENCODE_GLYPH = "\u25c8";
-const OPENCODE_VERBS: Record<string, string> = {
-	read: "Read",
-	write: "Write",
-	edit: "Edit",
-	grep: "Grep",
-	find: "Glob",
-	ls: "List",
-	bash: "Shell",
-	powershell: "Shell",
-};
 
 function opencodeGlyph(name: string): string {
 	return OPENCODE_GLYPHS[name] ?? OPENCODE_GLYPH;
-}
-
-function opencodeVerb(name: string): string {
-	return OPENCODE_VERBS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 const runtime = new ToolRuntime();
@@ -256,35 +238,6 @@ function hasNestedArguments(args: ToolArgs): boolean {
 		&& (!Array.isArray(value) || value.some((item) => typeof item === "object" && item !== null)));
 }
 
-/**
- * opencode's call row: the tool's glyph, its verb, and what it was given, indented
- * three columns. A shell row shows the command itself, as opencode's does.
- */
-function renderOpencodeCall(
-	name: string,
-	kind: RowKind,
-	args: ToolArgs,
-	theme: Theme,
-	state: RowState,
-	indicator: () => string,
-): Component {
-	const chrome = chromePainter(theme);
-	let label: string;
-	if (kind === "shell") {
-		// opencode's shell row is the command itself, wrapped under its glyph.
-		const command = normalizeLineEndings(typeof args.command === "string" ? args.command : "").trim();
-		label = ` ${styleMultiline(command || "\u2026", (line) => theme.fg("toolOutput", line))}`;
-	} else {
-		const summary = kind === "file" ? getCallDetails(name, args) : summarizeCustomArguments(args);
-		label = ` ${theme.fg("toolTitle", theme.bold(kind === "custom" ? name : opencodeVerb(name)))}`
-			+ (summary ? ` ${styleMultiline(summary, (line) => theme.fg("toolOutput", line))}` : "");
-	}
-	const container = new LiveCallContainer(indicator, (dot) => prefixedText(dot + label, OPENCODE_INDENT, OPENCODE_RAIL));
-	const extra = kind === "file" ? getArgumentDetails(name, args) : kind === "custom" && state.expanded ? args : {};
-	if (Object.keys(extra).length > 0) container.addChild(renderArguments(extra, theme, chrome(OPENCODE_RAIL)));
-	return new WithinWidth(container);
-}
-
 /** The call line: a status dot, the tool, and what it was asked, then any arguments the line leaves out. */
 function renderRowCall(name: string, args: ToolArgs, theme: Theme, ctx: RenderContext): Component {
 	return withOutputPad(renderRowCallContent(name, args, theme, ctx), ctx.outputPad);
@@ -311,7 +264,6 @@ function renderRowCallContent(name: string, args: ToolArgs, theme: Theme, ctx: R
 		if (kind === "custom" && state.expanded && hasNestedArguments(args)) container.addChild(renderArguments(args, theme, CLAUDE_INDENT));
 		return new WithinWidth(container);
 	}
-	if (isOpencode()) return renderOpencodeCall(name, kind, args, theme, state, indicator);
 	const title = ` ${theme.fg("toolTitle", theme.bold(name))}`;
 	let details: string | undefined;
 	if (kind === "shell") {
@@ -518,22 +470,6 @@ function renderRowResult(
 		const container = new CachedContainer();
 		const completion = nestedSummary ? renderControls(theme, state, false, ctx.isError, undefined, undefined, nestedSummary, CLAUDE_INDENT, CLAUDE_INDENT) : undefined;
 		container.addChild(renderClaudeResult(name, ctx.args, result, options, theme, ctx.isError, state.expanded === true, output, author, completion));
-		component = new WithinWidth(container);
-	} else if (isOpencode()) {
-		if (!options.isPartial && !state.resultLineSummaryComputed) {
-			state.resultLineSummary = kind === "custom" && !output ? undefined : formatResultLineSummary(name, ctx.args, result, output);
-			state.resultLineSummaryComputed = true;
-		}
-		const container = new CachedContainer();
-		if (state.expanded || state.preview) {
-			const body = renderRowBody(name, ctx.args, result, output, state.expanded === true, theme, ctx.isError, author, OPENCODE_RAIL);
-			if (body) container.addChild(state.expanded ? body : limitComponentLines(body, runtime.config.previewLines, theme));
-		}
-		// One quiet line under a settled call, as compact draws it: how long it took and
-		// what it returned. A failure says why in the same place.
-		const failureReason = ctx.isError && !state.expanded && !state.preview ? summarizeFailure(name, output) : undefined;
-		container.addChild(renderControls(theme, state, options.isPartial, ctx.isError, failureReason,
-			name === "edit" ? countEditChanges(result) : undefined, nestedSummary, OPENCODE_RAIL, OPENCODE_RAIL));
 		component = new WithinWidth(container);
 	} else {
 		if (!options.isPartial && !state.resultLineSummaryComputed) {
