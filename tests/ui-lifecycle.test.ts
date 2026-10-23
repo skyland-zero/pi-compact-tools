@@ -6,18 +6,19 @@ import { join } from "node:path";
 import test from "node:test";
 import { install } from "@sinonjs/fake-timers";
 import { initTheme, ToolExecutionComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Container, Text } from "@earendil-works/pi-tui";
+import { Container, stripTerminalSequences, Text } from "@earendil-works/pi-tui";
 import { theme } from "../node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme.js";
 import compactTools from "../extensions/compact-tools.ts";
 import { isSilent } from "../extensions/compact-tools-silent.ts";
 
-function harness(publicAPI: boolean, initial = "claude") {
+function harness(publicAPI: boolean, initial = "claude", overrides: object = {}) {
 	const previous = process.env.PI_CODING_AGENT_DIR;
 	const directory = mkdtempSync(join(tmpdir(), "compact-ui-lifecycle-"));
 	process.env.PI_CODING_AGENT_DIR = directory;
 	const configPath = join(directory, "compact-tools.json");
-	const save = (style: string) => writeFileSync(configPath, JSON.stringify({ style, mode: "silent" }));
-	save(initial); initTheme("dark", false);
+	// The working label is opt-in, and these tests are about owning and releasing it.
+	const save = (style: string, extra: object = {}) => writeFileSync(configPath, JSON.stringify({ style, mode: "silent", working: true, ...extra }));
+	save(initial, overrides); initTheme("dark", false);
 	const clock = install({ toFake: ["setInterval", "clearInterval"] });
 	const handlers = new Map<string, Function[]>(), commands = new Map<string, any>();
 	const widgets = new Map<string, unknown>(), inputs = new Set<Function>();
@@ -81,6 +82,7 @@ function harness(publicAPI: boolean, initial = "claude") {
 		if (checkWorking) assert.equal(working, undefined);
 	};
 	return { save, clock, ctx, chat, author, notifications, widgets, inputs, emit, command, addRow, detached,
+		get working() { return working; },
 		get probeMounts() { return probeMounts; },
 		get nativeLabelRestores() { return nativeLabelRestores; },
 		failCleanup(kind: CleanupFault) { fault = kind; },
@@ -126,6 +128,25 @@ for (const publicAPI of [false, true]) for (const route of ["live-off", "startup
 		} finally { await h.close(); }
 	});
 }
+
+for (const publicAPI of [false, true]) test(`the working label is opt-in and switches live (public=${publicAPI})`, async () => {
+	for (const initial of [false, true]) {
+		const h = harness(publicAPI, "compact", { working: initial });
+		try {
+			await h.emit("session_start", { reason: "startup" });
+			await h.emit("agent_start", {});
+			if (initial) assert.equal(stripTerminalSequences(h.working ?? ""), "Thinking…");
+			else assert.equal(h.working, undefined, "unset, Pi keeps its own working row");
+
+			// /compact-tools re-reads the file, so a label switch needs no reload.
+			h.save("compact", { working: !initial });
+			await h.command("compact");
+			await h.emit("agent_start", {});
+			if (initial) assert.equal(h.working, undefined, "releasing the label restores Pi's own");
+			else assert.equal(stripTerminalSequences(h.working ?? ""), "Thinking…");
+		} finally { await h.close(); }
+	}
+});
 
 for (const publicAPI of [false, true]) test(`one bad row warns once but cannot skip other rows or off/on cleanup (public=${publicAPI})`, async () => {
 	const h = harness(publicAPI);

@@ -7,10 +7,11 @@ import { loadConfig } from "./compact-tools-config.ts";
 
 type Scope = "global" | "project";
 const SCOPES: readonly Scope[] = ["global", "project"];
-const HELP = "Usage: /compact-tools [compact|claude|codex|off] [global|project]\nWithout a scope the style is saved globally, or to this project when its settings choose the style.\n/compact-tools status · /compact-tools help\nCtrl+O expands rows; /silent toggles quiet mode. All styles, including off, switch at once, even while tools run.";
+const HELP = "Usage: /compact-tools [compact|opencode|claude|codex|off] [global|project]\nWithout a scope the style is saved globally, or to this project when its settings choose the style.\n/compact-tools status · /compact-tools help\nCtrl+O expands rows; /silent toggles quiet mode. All styles, including off, switch at once, even while tools run.";
 const BUSY = "Wait for the current response to finish before changing tool styles.";
 const CHOICES: Record<DisplayStyle, string> = {
 	compact: "Compact — one expandable row per tool call",
+	opencode: "OpenCode — inline glyph rows with indented output",
 	claude: "Claude — group reads and searches",
 	codex: "Codex — explored groups and output tails, like Codex CLI",
 	off: "Off — restore Pi's native UI",
@@ -105,7 +106,7 @@ export function registerCompactToolsCommand(pi: ExtensionAPI, getConfig: () => C
 			if (parts.length === 1 && parts[0] === "status") {
 				const config = getConfig();
 				ctx.ui.notify([
-					`Style: ${config.style} · configured mode: ${config.mode} · preview: ${config.previewLines} lines`,
+					`Style: ${config.style} · configured mode: ${config.mode} · preview: ${config.previewLines} lines · working label: ${config.working ? "custom" : "Pi's own"}`,
 					`Global: ${describePath(configPath(ctx.cwd, "global"))}`,
 					`Project: ${describePath(configPath(ctx.cwd, "project"))} (${ctx.isProjectTrusted() ? "trusted; overrides global" : "untrusted; ignored"})`,
 					"/silent is a session toggle; Ctrl+O expands rows.",

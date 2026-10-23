@@ -9,9 +9,9 @@
       "type": "string"
     },
     "style": {
-      "description": "How tool rows are drawn. compact draws each call as a compact, expandable row. claude draws them the way Claude Code does: runs of reads, searches, listings, and commands that only look around fold into one summary line, while other commands, edits, writes, and custom tools keep rows of their own with Bash(…), Update(…), and similar titles; click a group or press Ctrl+O to open it. codex draws them the way Codex CLI does: calls that only look around fold into a • Explored group, commands read Ran or Failed (exit N) with their last three output lines, edits preview their changed lines, and custom tools read • Called; Ctrl+O or a click opens each one. off leaves every tool with Pi's own renderer.",
+      "description": "How tool rows are drawn. compact draws each call as a compact, expandable row. opencode draws them the way opencode's TUI does: a glyph and the tool's verb indented three columns, the command itself for a shell row, and its result indented under the label. claude draws them the way Claude Code does: runs of reads, searches, listings, and commands that only look around fold into one summary line, while other commands, edits, writes, and custom tools keep rows of their own with Bash(…), Update(…), and similar titles; click a group or press Ctrl+O to open it. codex draws them the way Codex CLI does: calls that only look around fold into a • Explored group, commands read Ran or Failed (exit N) with their last three output lines, edits preview their changed lines, and custom tools read • Called; Ctrl+O or a click opens each one. off leaves every tool with Pi's own renderer.",
       "type": "string",
-      "enum": ["compact", "claude", "codex", "off"],
+      "enum": ["compact", "opencode", "claude", "codex", "off"],
       "default": "compact"
     },
     "mode": {
@@ -62,6 +62,11 @@
       "minimum": 1,
       "maximum": 100,
       "default": 10
+    },
+    "working": {
+      "description": "Draw the extension's glowing working label (Thinking…, Responding…, Preparing tools…) in place of Pi's own working row. Off by default: Pi keeps its spinner and message.",
+      "type": "boolean",
+      "default": false
     },
     "auto_compact": {
       "description": "Whether each compact-rendered tool starts hidden. False starts with a bounded preview; Pi's normal click and Ctrl+O flow can expand either state. Custom tools can be listed by name too, which overrides custom_tools.auto_compact for that tool.",

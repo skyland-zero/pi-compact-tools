@@ -10,8 +10,8 @@ export type BuiltInDefinition = ToolDefinition<any, any, any>;
 
 export const DISPLAY_MODES = ["normal", "silent"] as const;
 export type DisplayMode = (typeof DISPLAY_MODES)[number];
-/** How tool rows are drawn: compactly, the way Claude Code or Codex draws them, or by Pi itself. */
-export const DISPLAY_STYLES = ["compact", "claude", "codex", "off"] as const;
+/** How tool rows are drawn: compactly, the way Claude Code, Codex, or opencode draw them, or by Pi itself. */
+export const DISPLAY_STYLES = ["compact", "opencode", "claude", "codex", "off"] as const;
 export type DisplayStyle = (typeof DISPLAY_STYLES)[number];
 
 export interface CustomToolsConfig {
@@ -29,6 +29,8 @@ export interface CompactToolsConfig {
 	auto_compact: Record<CompactToolName, boolean> & { [tool: string]: boolean | undefined };
 	custom_tools: CustomToolsConfig;
 	previewLines: number;
+	/** Draw the glowing working label instead of Pi's own spinner and message. Off by default. */
+	working: boolean;
 }
 
 export interface RowState {

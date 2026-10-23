@@ -71,6 +71,55 @@ import {
 /** Context lines kept around each change while an edit result is collapsed. */
 const PREVIEW_DIFF_CONTEXT_LINES = 1;
 
+/**
+ * opencode's rows sit three columns in: a glyph instead of a status dot, the tool's
+ * verb, and what it was given. Its output lines up under that label rather than on
+ * a rail.
+ */
+const OPENCODE_INDENT = "   ";
+const OPENCODE_RAIL = "     ";
+const OPENCODE_GLYPHS: Record<string, string> = {
+	read: "\u2192",
+	grep: "\u2731",
+	find: "\u2731",
+	ls: "\u2317",
+	bash: "$",
+	// PowerShell's prompt, one column like the rest so its label lines up with bash's.
+	powershell: "\u276f",
+	edit: "%",
+	write: "%",
+};
+/** Any other tool, as opencode marks a generic call. */
+const OPENCODE_GLYPH = "\u25c8";
+const OPENCODE_VERBS: Record<string, string> = {
+	read: "Read",
+	write: "Write",
+	edit: "Edit",
+	grep: "Grep",
+	find: "Glob",
+	ls: "List",
+	bash: "Shell",
+	powershell: "Shell",
+};
+
+function opencodeGlyph(name: string): string {
+	return OPENCODE_GLYPHS[name] ?? OPENCODE_GLYPH;
+}
+
+function opencodeVerb(name: string): string {
+	return OPENCODE_VERBS[name] ?? name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/** What a search looked for, as opencode writes it: `"pattern" in path`. */
+function opencodeSearch(args: ToolArgs): string | undefined {
+	const pattern = typeof args.pattern === "string"
+		? normalizeLineEndings(args.pattern).split("\n")[0]!.trim()
+		: "";
+	const path = typeof args.path === "string" ? args.path : typeof args.file_path === "string" ? args.file_path : "";
+	if (!pattern) return path || undefined;
+	return path ? `"${pattern}" in ${path}` : `"${pattern}"`;
+}
+
 const runtime = new ToolRuntime();
 const nestedSummaries = new NestedCallSummaries();
 let registeredConfiguration: string | undefined;
@@ -106,6 +155,10 @@ function isClaude(): boolean {
 
 function isCodex(): boolean {
 	return runtime.config.style === "codex";
+}
+
+function isOpencode(): boolean {
+	return runtime.config.style === "opencode";
 }
 
 function pathArgument(args: ToolArgs): string {
@@ -212,6 +265,37 @@ function hasNestedArguments(args: ToolArgs): boolean {
 		&& (!Array.isArray(value) || value.some((item) => typeof item === "object" && item !== null)));
 }
 
+/**
+ * opencode's call row: the tool's glyph, its verb, and what it was given, indented
+ * three columns. A shell row shows the command itself, as opencode's does.
+ */
+function renderOpencodeCall(
+	name: string,
+	kind: RowKind,
+	args: ToolArgs,
+	theme: Theme,
+	state: RowState,
+	indicator: () => string,
+): Component {
+	const chrome = chromePainter(theme);
+	let label: string;
+	if (kind === "shell") {
+		// opencode's shell row is the command itself, wrapped under its glyph.
+		const command = normalizeLineEndings(typeof args.command === "string" ? args.command : "").trim();
+		label = ` ${styleMultiline(command || "\u2026", (line) => theme.fg("toolOutput", line))}`;
+	} else {
+		const summary = kind === "file"
+			? (name === "grep" || name === "find" ? opencodeSearch(args) : getCallDetails(name, args))
+			: summarizeCustomArguments(args);
+		label = ` ${theme.fg("toolTitle", theme.bold(kind === "custom" ? name : opencodeVerb(name)))}`
+			+ (summary ? ` ${styleMultiline(summary, (line) => theme.fg("toolOutput", line))}` : "");
+	}
+	const container = new LiveCallContainer(indicator, (dot) => prefixedText(dot + label, OPENCODE_INDENT, OPENCODE_RAIL));
+	const extra = kind === "file" ? getArgumentDetails(name, args) : kind === "custom" && state.expanded ? args : {};
+	if (Object.keys(extra).length > 0) container.addChild(renderArguments(extra, theme, chrome(OPENCODE_RAIL)));
+	return new WithinWidth(container);
+}
+
 /** The call line: a status dot, the tool, and what it was asked, then any arguments the line leaves out. */
 function renderRowCall(name: string, args: ToolArgs, theme: Theme, ctx: RenderContext): Component {
 	return withOutputPad(renderRowCallContent(name, args, theme, ctx), ctx.outputPad);
@@ -221,7 +305,7 @@ function renderRowCallContent(name: string, args: ToolArgs, theme: Theme, ctx: R
 	const state = runtime.syncRow(ctx);
 	runtime.syncExpansion(state, ctx.expanded, name);
 	const kind = rowKind(name);
-	const indicator = liveIndicator(theme, ctx, state, isCodex() ? CODEX_BULLET : undefined);
+	const indicator = liveIndicator(theme, ctx, state, isCodex() ? CODEX_BULLET : isOpencode() ? opencodeGlyph(name) : undefined);
 	// Painted once now as well, so a row that starts running starts the animation clock.
 	indicator();
 	// Codex's head reads the call's outcome, so it is worded each time it is drawn.
@@ -238,6 +322,7 @@ function renderRowCallContent(name: string, args: ToolArgs, theme: Theme, ctx: R
 		if (kind === "custom" && state.expanded && hasNestedArguments(args)) container.addChild(renderArguments(args, theme, CLAUDE_INDENT));
 		return new WithinWidth(container);
 	}
+	if (isOpencode()) return renderOpencodeCall(name, kind, args, theme, state, indicator);
 	const title = ` ${theme.fg("toolTitle", theme.bold(name))}`;
 	let details: string | undefined;
 	if (kind === "shell") {
@@ -445,6 +530,24 @@ function renderRowResult(
 		const completion = nestedSummary ? renderControls(theme, state, false, ctx.isError, undefined, undefined, nestedSummary, CLAUDE_INDENT, CLAUDE_INDENT) : undefined;
 		container.addChild(renderClaudeResult(name, ctx.args, result, options, theme, ctx.isError, state.expanded === true, output, author, completion));
 		component = new WithinWidth(container);
+	} else if (isOpencode()) {
+		if (!options.isPartial && !state.resultLineSummaryComputed) {
+			state.resultLineSummary = kind === "custom" && !output ? undefined : formatResultLineSummary(name, ctx.args, result, output);
+			state.resultLineSummaryComputed = true;
+		}
+		const container = new CachedContainer();
+		if (state.expanded || state.preview) {
+			const body = renderRowBody(name, ctx.args, result, output, state.expanded === true, theme, ctx.isError, author, OPENCODE_RAIL);
+			if (body) container.addChild(state.expanded ? body : limitComponentLines(body, runtime.config.previewLines, theme));
+		}
+		// opencode lets a settled call rest on its glyph: a success adds no line, while a
+		// failure says why, and a codemode script still tallies the calls it made.
+		const failureReason = ctx.isError && !state.expanded && !state.preview ? summarizeFailure(name, output) : undefined;
+		if (ctx.isError || nestedSummary) {
+			container.addChild(renderControls(theme, state, options.isPartial, ctx.isError, failureReason,
+				name === "edit" ? countEditChanges(result) : undefined, nestedSummary, OPENCODE_RAIL, OPENCODE_RAIL));
+		}
+		component = new WithinWidth(container);
 	} else {
 		if (!options.isPartial && !state.resultLineSummaryComputed) {
 			// A custom tool with no text has nothing to count.
@@ -617,14 +720,15 @@ function configure(_pi: ExtensionAPI, cwd?: string, projectTrusted = false, fail
 
 /**
  * Apply a style saved by /compact-tools without reloading Pi. The compact, Claude, and
- * Codex styles share every tool registration and read the style as they draw, so the
- * configuration is swapped and each tool row on screen is drawn again, a running one
- * included. Only non-style configuration changes require a reload.
+ * Codex styles share every tool registration and read the style as they draw, as does
+ * the optional working label, so the configuration is swapped and each tool row on
+ * screen is drawn again, a running one included. Only other configuration changes
+ * require a reload.
  */
 function applyStyle(cwd: string, trusted: boolean, failures: UIFailure[]): boolean {
 	const config = loadConfig(cwd, trusted);
 	const current = runtime.config;
-	if (JSON.stringify({ ...config, style: current.style }) !== JSON.stringify(current)) return false;
+	if (JSON.stringify({ ...config, style: current.style, working: current.working }) !== JSON.stringify(current)) return false;
 	runtime.configure(config);
 	registeredConfiguration = JSON.stringify([cwd, config]);
 	invalidateRowDecisions(failures);
@@ -694,7 +798,8 @@ export default function compactTools(pi: ExtensionAPI): void {
 	const enableUI = (ctx: ExtensionContext, reload: boolean, resume: boolean, failures: UIFailure[]) => {
 		// Observe relayout keys before the thinking controller consumes them.
 		attemptUI(failures, "viewport bind", () => viewport.bind(ctx));
-		attemptUI(failures, "progress bind", () => progress.bind(ctx, resume));
+		// The working label is opt-in: unset, Pi keeps its own spinner and message.
+		if (runtime.config.working) attemptUI(failures, "progress bind", () => progress.bind(ctx, resume));
 		attemptUI(failures, "thinking bind", () => thinkingCycle.bind(ctx));
 		attemptUI(failures, "silent bind", () => silent.bind(ctx, runtime.config.mode, reload, resume));
 		attemptUI(failures, "groups bind", () => groups.bind(ctx));
@@ -714,11 +819,17 @@ export default function compactTools(pi: ExtensionAPI): void {
 	registerCompactToolsCommand(pi, () => runtime.config, (cwd, trusted, ctx) => {
 		const failures: UIFailure[] = [];
 		const wasOff = runtime.config.style === "off";
+		const wasWorking = runtime.config.working;
 		if (!applyStyle(cwd, trusted, failures)) return false;
 		const uiContext = sessionContext ?? ctx;
 		if (uiContext.mode === "tui") {
 			if (runtime.config.style === "off") detachUI({ preservePhase: true, restoreNative: true }, failures);
 			else if (wasOff) enableUI(uiContext, true, true, failures);
+			else if (runtime.config.working !== wasWorking) {
+				// Switching the label alone leaves the rest of the UI attached.
+				if (runtime.config.working) attemptUI(failures, "progress bind", () => progress.bind(uiContext));
+				else attemptUI(failures, "progress cleanup", () => progress.dispose(false));
+			}
 			// Off->off has no attached thinking context to restore the native label.
 			if (wasOff && runtime.config.style === "off") attemptUI(failures, "native thinking", () => uiContext.ui.setHiddenThinkingLabel());
 		}

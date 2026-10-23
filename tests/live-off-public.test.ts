@@ -18,7 +18,7 @@ for (const publicAPI of [false, true]) for (const initial of ["off", "claude"]) 
 	const previous = process.env.PI_CODING_AGENT_DIR;
 	const dir = mkdtempSync(join(tmpdir(), "compact-live-off-"));
 	process.env.PI_CODING_AGENT_DIR = dir;
-	writeFileSync(join(dir, "compact-tools.json"), JSON.stringify({ style: initial }));
+	writeFileSync(join(dir, "compact-tools.json"), JSON.stringify({ style: initial, working: true }));
 	initTheme("dark", false);
 	const clock = install({ toFake: ["setInterval", "clearInterval"] });
 	const handlers = new Map<string, Function[]>(), commands = new Map<string, any>();

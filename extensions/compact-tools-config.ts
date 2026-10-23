@@ -34,6 +34,8 @@ export const DEFAULT_CONFIG: CompactToolsConfig = {
 		auto_compact: true,
 		exclude: [],
 	},
+	// Pi keeps its own working row unless this is turned on.
+	working: false,
 };
 
 function isObject(value: unknown): value is JsonObject {
@@ -134,7 +136,12 @@ export function mergeConfig(base: CompactToolsConfig, value: unknown, path: stri
 	if (value.previewLines !== undefined && !isIntegerInRange(value.previewLines, 1, 100)) {
 		warn(path, "previewLines must be 1–100; using previous value");
 	}
-	return { mode, style, tools, auto_compact, custom_tools, previewLines };
+	const working = value.working === undefined ? base.working
+		: typeof value.working === "boolean" ? value.working : base.working;
+	if (value.working !== undefined && typeof value.working !== "boolean") {
+		warn(path, "working must be true or false; using previous value");
+	}
+	return { mode, style, tools, auto_compact, custom_tools, previewLines, working };
 }
 
 function readJson(path: string): unknown {

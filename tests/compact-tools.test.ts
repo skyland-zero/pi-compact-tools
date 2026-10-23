@@ -116,6 +116,9 @@ test("parses display mode and keeps the previous value when invalid", () => {
 	assert.equal(mergeConfig(DEFAULT_CONFIG, { style: "codex" }, "test").style, "codex");
 	assert.equal(mergeConfig(DEFAULT_CONFIG, { style: "Codex" }, "test").style, "compact", "styles are spelled exactly");
 	assert.equal(mergeConfig(DEFAULT_CONFIG, { style: "fancy" }, "test").style, "compact", "an unknown style keeps the previous one");
+	assert.equal(DEFAULT_CONFIG.working, false, "the working label is opt-in");
+	assert.equal(mergeConfig(DEFAULT_CONFIG, { working: true }, "test").working, true);
+	assert.equal(mergeConfig(DEFAULT_CONFIG, { working: "yes" }, "test").working, false, "only a boolean turns it on");
 	assert.equal(mergeConfig(DEFAULT_CONFIG, { mode: "claude" }, "test").mode, "normal", "styles are not modes");
 	const both = mergeConfig(DEFAULT_CONFIG, { style: "claude", mode: "silent" }, "test");
 	assert.deepEqual([both.style, both.mode], ["claude", "silent"], "a style and silent mode combine");

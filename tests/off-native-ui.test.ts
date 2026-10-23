@@ -17,7 +17,7 @@ for (const publicAPI of [false, true]) test(`off restores native rows, thinking,
 	process.env.PI_CODING_AGENT_DIR = dir;
 	initTheme("dark", false);
 	const clock = install({ toFake: ["setInterval", "clearInterval"] });
-	const config = (style: string) => writeFileSync(join(dir, "compact-tools.json"), JSON.stringify({ style, mode: "silent" }));
+	const config = (style: string) => writeFileSync(join(dir, "compact-tools.json"), JSON.stringify({ style, mode: "silent", working: true }));
 	const base = createBashToolDefinition(dir);
 	const args = { command: "echo native" };
 	const result = { content: [{ type: "text" as const, text: "native output" }], details: undefined, isError: false };

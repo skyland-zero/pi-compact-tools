@@ -1,6 +1,6 @@
 # pi-compact-tools
 
-Three tool-row styles for Pi: **Claude**, **Codex**, and **Compact**. Switch styles live, hide tool noise with silent mode, and see what codemode scripts actually called.
+Four tool-row styles for Pi: **Compact**, **OpenCode**, **Claude**, and **Codex**. Switch styles live, hide tool noise with silent mode, and see what codemode scripts actually called.
 
 **UI only:** no changes to tool execution, model input, or session records. Includes custom-tool rendering and a GitHub Dark theme.
 
@@ -23,6 +23,7 @@ Requires Node.js 22.19+ and Pi 0.85.1+. **Pi 1.0.2+ recommended** for native ren
 | **Claude** | Grouped reads/searches, `⎿` results, edit previews | `/compact-tools claude` |
 | **Codex** | `• Explored` groups, `• Ran` output, highlighted diffs | `/compact-tools codex` |
 | **Compact** (default) | One row per call: status, duration, line count, and diff | `/compact-tools compact` |
+| **OpenCode** | An indented glyph row per call with the result under it | `/compact-tools opencode` |
 | **Off / Pi native** | Pi's original rows, thinking display, and working indicator | `/compact-tools off` |
 
 Every style, including **off**, redraws existing rows immediately, even while tools run. No reload or interruption is needed. Only read-only exploration is grouped; commands that write or execute work keep separate rows.
@@ -67,6 +68,7 @@ The two failed edits are intentional. Reload/resume preserves summaries from nes
 
 ```text
 /compact-tools                 # choose style and save scope
+/compact-tools opencode        # indented glyph rows, like opencode's TUI
 /compact-tools claude project  # save for this trusted project
 /compact-tools codex global    # save globally
 /compact-tools status          # effective settings and paths
@@ -89,12 +91,13 @@ Optional: `~/.pi/agent/compact-tools.json` or `<project>/.pi/compact-tools.json`
   "style": "compact",
   "mode": "normal",
   "previewLines": 10,
+  "working": false,
   "auto_compact": { "read": true, "write": true, "edit": false, "bash": true },
   "custom_tools": { "enabled": true, "auto_compact": true, "exclude": [] }
 }
 ```
 
-`auto_compact` entries set to `true` start Compact rows collapsed. Add tool names to `custom_tools.exclude` to keep their own rendering. All options are described in the linked schema.
+`auto_compact` entries set to `true` start Compact rows collapsed. Add tool names to `custom_tools.exclude` to keep their own rendering. `working` is off by default: Pi keeps its own spinner and working message; set it to `true` for the glowing phase label. All options are described in the linked schema.
 
 ## Development
 
