@@ -529,13 +529,11 @@ function renderRowResult(
 			const body = renderRowBody(name, ctx.args, result, output, state.expanded === true, theme, ctx.isError, author, OPENCODE_RAIL);
 			if (body) container.addChild(state.expanded ? body : limitComponentLines(body, runtime.config.previewLines, theme));
 		}
-		// opencode lets a settled call rest on its glyph: a success adds no line, while a
-		// failure says why, and a codemode script still tallies the calls it made.
+		// One quiet line under a settled call, as compact draws it: how long it took and
+		// what it returned. A failure says why in the same place.
 		const failureReason = ctx.isError && !state.expanded && !state.preview ? summarizeFailure(name, output) : undefined;
-		if (ctx.isError || nestedSummary) {
-			container.addChild(renderControls(theme, state, options.isPartial, ctx.isError, failureReason,
-				name === "edit" ? countEditChanges(result) : undefined, nestedSummary, OPENCODE_RAIL, OPENCODE_RAIL));
-		}
+		container.addChild(renderControls(theme, state, options.isPartial, ctx.isError, failureReason,
+			name === "edit" ? countEditChanges(result) : undefined, nestedSummary, OPENCODE_RAIL, OPENCODE_RAIL));
 		component = new WithinWidth(container);
 	} else {
 		if (!options.isPartial && !state.resultLineSummaryComputed) {
