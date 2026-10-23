@@ -72,12 +72,13 @@ import {
 const PREVIEW_DIFF_CONTEXT_LINES = 1;
 
 /**
- * opencode's rows sit three columns in: a glyph instead of a status dot, the tool's
- * verb, and what it was given. Its output lines up under that label rather than on
- * a rail.
+ * opencode's rows sit one column in, level with the other styles' glyph: a glyph
+ * instead of a status dot, the tool's verb, and what it was given. Its output lines
+ * up under that label rather than on a rail. (opencode itself indents three columns;
+ * matching compact keeps the glyph column steady when switching styles.)
  */
-const OPENCODE_INDENT = "   ";
-const OPENCODE_RAIL = "     ";
+const OPENCODE_INDENT = " ";
+const OPENCODE_RAIL = "   ";
 const OPENCODE_GLYPHS: Record<string, string> = {
 	read: "\u2192",
 	grep: "\u2731",
